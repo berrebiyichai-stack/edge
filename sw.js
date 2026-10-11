@@ -1,8 +1,9 @@
 // Cache hors ligne. Incrémenter CACHE à chaque mise à jour du contenu pour forcer le rafraîchissement.
-const CACHE = 'edge-v2';
+const CACHE = 'edge-v3';
 const FICHIERS = [
   './', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest',
   'data/lecons.js', 'data/fiches.js', 'data/cartes.js', 'data/quiz.js',
+  'data/quiz-technique.js', 'data/quiz-fondamental.js', 'data/quiz-avance.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
 ];
 

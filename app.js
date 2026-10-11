@@ -469,6 +469,7 @@ VUES.finCartes = () => {
 };
 
 let themeQuiz = null;
+let tailleQuiz = QUESTIONS_PAR_QUIZ;
 let partie = null;
 
 VUES.quiz = () => {
@@ -483,8 +484,11 @@ VUES.quiz = () => {
       ${ts.map(t => `<button class="chip ${themeQuiz === t ? 'actif' : ''}" data-theme="${esc(t)}">${esc(t)}</button>`).join('')}
     </div>
     <div class="carte mise-en-avant">
-      <p class="surtitre">${themeQuiz === '__erreurs' ? 'Revoir mes erreurs' : esc(themeQuiz || 'Tous les thèmes')}</p>
-      <h2>${Math.min(QUESTIONS_PAR_QUIZ, poolQuiz().length)} questions</h2>
+      <p class="surtitre">${themeQuiz === '__erreurs' ? 'Revoir mes erreurs' : esc(themeQuiz || 'Tous les thèmes')} · ${poolQuiz().length} en stock</p>
+      <h2>${Math.min(tailleQuiz, poolQuiz().length)} questions</h2>
+      <div class="segment" style="margin:10px 0">
+        ${[10, 20, 40].map(n => `<button data-taille="${n}" class="${tailleQuiz === n ? 'actif' : ''}">${n}</button>`).join('')}
+      </div>
       <p class="muted petit">QCM et mises en situation. Chaque réponse est expliquée. Les questions ratées vont dans "Mes erreurs".</p>
       <button class="btn principal plein" id="lancer" ${poolQuiz().length ? '' : 'disabled'}>Lancer le quiz</button>
     </div>
@@ -495,8 +499,9 @@ VUES.quiz = () => {
     </div>`).join('')}` : ''}`);
 
   sur('[data-theme]', 'click', e => { themeQuiz = e.currentTarget.dataset.theme || null; VUES.quiz(); });
+  sur('[data-taille]', 'click', e => { tailleQuiz = +e.currentTarget.dataset.taille; VUES.quiz(); });
   sur('#lancer', 'click', () => {
-    const qs = melanger(poolQuiz()).slice(0, QUESTIONS_PAR_QUIZ).map(q => {
+    const qs = melanger(poolQuiz()).slice(0, tailleQuiz).map(q => {
       const ordre = melanger(q.choix.map((_, k) => k));
       return { ...q, ordre };
     });
