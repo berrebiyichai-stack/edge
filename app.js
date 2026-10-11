@@ -149,8 +149,9 @@ const COULEURS_GRAPH = { vert: 'var(--green)', rouge: 'var(--red)', or: 'var(--a
 function svgGraphique(id) {
   const d = (window.GRAPHIQUES || {})[id];
   if (!d) return '';
-  const b = window.genererBougies(d.base ? window.GRAPHIQUES[d.base] : d);
-  const L = 12, G0 = 6, DROITE = 40, H = 230, HAUT = 24, BAS = 24;
+  // coupe : n'afficher que les n premières bougies (pour demander "que fais-tu maintenant ?").
+  const b = window.genererBougies(d.base ? window.GRAPHIQUES[d.base] : d).slice(0, d.coupe || undefined);
+  const L = 12, G0 = 6, DROITE = 54, H = 230, HAUT = 24, BAS = 24;
   const W = G0 + b.length * L + DROITE;
   const min = Math.min(...b.map(x => x.l)), max = Math.max(...b.map(x => x.h));
   const y = p => +(HAUT + (max - p) / (max - min) * (H - HAUT - BAS)).toFixed(1);
@@ -181,11 +182,13 @@ function svgGraphique(id) {
       if (n.ce) dessus.push(ligne(xg(n.i - 1), xd(n.a), (top + bot) / 2, c));
       if (n.texte) dessus.push(txt(xd(n.a) - 2, y(top) - 3, n.texte, c, 'end'));
     } else if (n.t === 'niveau' || n.t === 'ligne') {
-      const p = n.t === 'niveau' ? prixCote(n.i, n.cote) : n.prix;
+      const p = n.t === 'niveau' ? prixCote(n.i, n.cote) + (n.decalage || 0) : n.prix;
       const de = n.t === 'niveau' ? xc(n.i) : xg(n.de);
       dessus.push(ligne(de, xd(n.a), p, c));
-      // Texte centré sur la ligne : la zone entre le swing et la cassure est en général vide.
-      if (n.texte) dessus.push(txt((de + xd(n.a)) / 2, y(p) - 4, n.texte, c, 'middle'));
+      // Ligne à prix fixe : texte dans la marge de droite. Niveau : texte centré sur la ligne,
+      // la zone entre le swing et la cassure étant en général vide (dessous: true pour l'écrire sous la ligne).
+      if (n.texte && n.t === 'ligne') dessus.push(txt(xd(n.a) + 3, y(p) + 3.5, n.texte, c));
+      else if (n.texte) dessus.push(txt((de + xd(n.a)) / 2, n.dessous ? y(p) + 12 : y(p) - 4, n.texte, c, 'middle'));
     } else if (n.t === 'fibo') {
       const montee = b[n.vers].h > b[n.de].h;
       const s = montee ? b[n.de].l : b[n.de].h, e = montee ? b[n.vers].h : b[n.vers].l;
