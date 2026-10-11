@@ -163,7 +163,12 @@ main { max-width: 680px; margin: 0 auto; padding: 16px; }
 /* Formulaires */
 label.champ { display: block; margin-bottom: 14px; }
 label.champ span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
-input[type=text], input[type=password], input[type=url] {
+.mot { padding: 14px 16px; }
+.mot-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+.mot-tete .badge { flex: none; margin-top: 2px; }
+.mot p { margin: 0; color: #cdd6e0; font-size: 15px; }
+
+input[type=text], input[type=password], input[type=url], input[type=search] {
   width: 100%; height: 46px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border);
   background: var(--bg); color: var(--text); font: inherit; font-size: 16px;
 }

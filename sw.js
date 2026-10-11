@@ -1,8 +1,8 @@
 // Cache hors ligne. Incrémenter CACHE à chaque mise à jour du contenu pour forcer le rafraîchissement.
-const CACHE = 'edge-v3';
+const CACHE = 'edge-v4';
 const FICHIERS = [
   './', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest',
-  'data/lecons.js', 'data/fiches.js', 'data/cartes.js', 'data/quiz.js',
+  'data/lecons.js', 'data/fiches.js', 'data/lexique.js', 'data/cartes.js', 'data/quiz.js',
   'data/quiz-technique.js', 'data/quiz-fondamental.js', 'data/quiz-avance.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
 ];
@@ -24,7 +24,8 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   e.respondWith(
-    fetch(req)
+    // no-cache : revalide auprès du serveur au lieu de servir une vieille copie du cache HTTP du navigateur.
+    fetch(req, { cache: 'no-cache' })
       .then(rep => {
         const copie = rep.clone();
         caches.open(CACHE).then(c => c.put(req, copie));

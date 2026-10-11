@@ -101,6 +101,7 @@ const QUIZ = (window.QUIZ || []).map(q => ({ ...q, id: hash(q.q) }));
 const LECONS = window.LECONS || [];
 const FICHES = window.FICHES || [];
 const REGLES = window.REGLES || [];
+const LEXIQUE = window.LEXIQUE || [];
 
 function themes(liste) {
   return [...new Set(liste.map(x => x.theme || x.module))];
@@ -231,6 +232,8 @@ VUES.accueil = () => {
   const nouvelles = Math.min(nouvellesRestantes(), cartesNouvelles().length);
   const s = serie();
   const regle = REGLES.length ? REGLES[jour() % REGLES.length] : null;
+  // Pas de 37 pour ne pas tomber sur des mots voisins (et de la même catégorie) deux jours de suite.
+  const motDuJour = LEXIQUE.length ? LEXIQUE[(jour() * 37) % LEXIQUE.length] : null;
   const hist = etat.quiz.historique;
   const moyQuiz = hist.length ? hist.slice(-10).reduce((a, h) => a + h.score / h.total, 0) / Math.min(10, hist.length) : null;
   const sj = etat.journal.cache ? statsJournal(etat.journal.cache) : null;
@@ -261,6 +264,8 @@ VUES.accueil = () => {
       </button>
     </div>
 
+    ${motDuJour ? `<button class="carte cliquable" id="go-lexique"><p class="surtitre">Mot du jour · ${esc(motDuJour.cat)}</p><h3>${esc(motDuJour.terme)}</h3><p class="muted petit" style="margin:0">${esc(motDuJour.def)}</p></button>` : ''}
+
     ${regle ? `<div class="carte"><p class="surtitre">Règle du jour</p><p style="margin:0">${esc(regle)}</p></div>` : ''}
 
     <p class="section-titre">Progression</p>
@@ -278,6 +283,7 @@ VUES.accueil = () => {
 
   sur('#go-lecon', 'click', () => aller('lecon', { id: lecon.id }));
   sur('#go-cartes', 'click', () => onglet('cartes'));
+  sur('#go-lexique', 'click', () => { segmentApprendre = 'lexique'; rechercheLexique = ''; catLexique = null; onglet('apprendre'); });
   sur('#go-quiz', 'click', () => onglet('quiz'));
 };
 
@@ -299,6 +305,15 @@ VUES.apprendre = () => {
             <span class="grow"><strong style="display:block">${esc(l.titre)}</strong><span class="muted petit">${l.duree} min · ${esc(l.resume)}</span></span>
           </button>`).join('')}`;
     }).join('');
+  } else if (segmentApprendre === 'lexique') {
+    const cats = [...new Set(LEXIQUE.map(m => m.cat))];
+    corps = `
+      <input type="search" id="lex-recherche" placeholder="Chercher un mot (FVG, spread…)" value="${esc(rechercheLexique)}" autocomplete="off" autocapitalize="off" style="margin-bottom:12px">
+      <div class="chips">
+        <button class="chip ${!catLexique ? 'actif' : ''}" data-cat="">Tout (${LEXIQUE.length})</button>
+        ${cats.map(c => `<button class="chip ${catLexique === c ? 'actif' : ''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
+      </div>
+      <div id="lex-liste"></div>`;
   } else {
     const ts = themes(FICHES);
     const liste = FICHES.filter(f => !themeFiches || f.theme === themeFiches);
@@ -318,14 +333,46 @@ VUES.apprendre = () => {
     <div class="segment">
       <button data-seg="lecons" class="${segmentApprendre === 'lecons' ? 'actif' : ''}">Leçons</button>
       <button data-seg="fiches" class="${segmentApprendre === 'fiches' ? 'actif' : ''}">Fiches</button>
+      <button data-seg="lexique" class="${segmentApprendre === 'lexique' ? 'actif' : ''}">Lexique</button>
     </div>
     ${corps}`);
+
+  if (segmentApprendre === 'lexique') {
+    afficherLexique();
+    // On ne re-rend que la liste pour garder le focus (et le clavier) dans le champ de recherche.
+    sur('#lex-recherche', 'input', e => { rechercheLexique = e.target.value; afficherLexique(); });
+    sur('[data-cat]', 'click', e => { catLexique = e.currentTarget.dataset.cat || null; VUES.apprendre(); });
+  }
 
   sur('[data-seg]', 'click', e => { segmentApprendre = e.currentTarget.dataset.seg; VUES.apprendre(); });
   sur('[data-theme]', 'click', e => { themeFiches = e.currentTarget.dataset.theme || null; VUES.apprendre(); });
   sur('[data-lecon]', 'click', e => aller('lecon', { id: e.currentTarget.dataset.lecon }));
   sur('[data-fiche]', 'click', e => aller('fiche', { id: e.currentTarget.dataset.fiche }));
 };
+
+let rechercheLexique = '';
+let catLexique = null;
+
+function sansAccents(s) {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+function afficherLexique() {
+  const q = sansAccents(rechercheLexique.trim());
+  const mots = LEXIQUE
+    .filter(m => (!catLexique || m.cat === catLexique) && (!q || sansAccents(m.terme + ' ' + m.def).includes(q)))
+    // Les mots dont le terme correspond passent avant ceux qui ne correspondent que par la définition.
+    .sort((a, b) => (q ? sansAccents(b.terme).includes(q) - sansAccents(a.terme).includes(q) : 0)
+      || a.terme.localeCompare(b.terme, 'fr', { sensitivity: 'base' }));
+  let lettre = '';
+  const html = mots.map(m => {
+    const l = q ? '' : (sansAccents(m.terme)[0].match(/[a-z]/) ? sansAccents(m.terme)[0].toUpperCase() : '#');
+    const entete = l && l !== lettre ? `<p class="section-titre">${(lettre = l)}</p>` : '';
+    return `${entete}<div class="carte mot"><div class="mot-tete"><strong>${esc(m.terme)}</strong><span class="badge">${esc(m.cat)}</span></div><p>${esc(m.def)}</p></div>`;
+  }).join('');
+  const liste = document.getElementById('lex-liste');
+  if (liste) liste.innerHTML = html || `<div class="vide">Aucun mot trouvé pour "${esc(rechercheLexique)}".<br>Demande à Jarvis de l'ajouter au lexique.</div>`;
+}
 
 VUES.lecon = ({ id }) => {
   const i = LECONS.findIndex(l => l.id === id);
