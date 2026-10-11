@@ -16,6 +16,7 @@ function etatParDefaut() {
     nouvellesDuJour: { jour: 0, n: 0 },
     quiz: { historique: [], erreurs: {} },
     activite: [],                     // jours avec au moins une action
+    guidee: {},                       // id du scénario -> meilleur score
     journal: { url: '', cle: '', cache: null, maj: null },
   };
 }
@@ -147,7 +148,8 @@ function rendre(titre, html) {
 const COULEURS_GRAPH = { vert: 'var(--green)', rouge: 'var(--red)', or: 'var(--accent)', bleu: 'var(--blue)', neutre: 'var(--muted)' };
 
 function svgGraphique(id) {
-  const d = (window.GRAPHIQUES || {})[id];
+  // id d'un graphique de data/graphiques.js, ou définition directe (analyse guidée).
+  const d = typeof id === 'object' ? id : (window.GRAPHIQUES || {})[id];
   if (!d) return '';
   // coupe : n'afficher que les n premières bougies (pour demander "que fais-tu maintenant ?").
   const b = window.genererBougies(d.base ? window.GRAPHIQUES[d.base] : d).slice(0, d.coupe || undefined);
@@ -702,12 +704,23 @@ let themeQuiz = null;
 let tailleQuiz = QUESTIONS_PAR_QUIZ;
 let partie = null;
 
+let segmentQuiz = 'quiz';
+
+function segmentQuizHtml() {
+  return `<div class="segment">
+      <button data-segq="quiz" class="${segmentQuiz === 'quiz' ? 'actif' : ''}">Quiz</button>
+      <button data-segq="guidee" class="${segmentQuiz === 'guidee' ? 'actif' : ''}">Analyse guidée</button>
+    </div>`;
+}
+
 VUES.quiz = () => {
   partie = null;
+  if (segmentQuiz === 'guidee') return VUES.guideeListe();
   const ts = themes(QUIZ);
   const nbErreurs = Object.keys(etat.quiz.erreurs).length;
   const hist = etat.quiz.historique.slice(-5).reverse();
   rendre('Quiz', `
+    ${segmentQuizHtml()}
     <div class="chips">
       <button class="chip ${!themeQuiz ? 'actif' : ''}" data-theme="">Tout</button>
       ${nbErreurs ? `<button class="chip ${themeQuiz === '__erreurs' ? 'actif' : ''}" data-theme="__erreurs">Mes erreurs (${nbErreurs})</button>` : ''}
@@ -728,6 +741,7 @@ VUES.quiz = () => {
       <span class="badge ${h.score / h.total >= .8 ? 'vert' : h.score / h.total >= .5 ? 'or' : 'rouge'}">${h.score}/${h.total}</span>
     </div>`).join('')}` : ''}`);
 
+  sur('[data-segq]', 'click', e => { segmentQuiz = e.currentTarget.dataset.segq; VUES.quiz(); });
   sur('[data-theme]', 'click', e => { themeQuiz = e.currentTarget.dataset.theme || null; VUES.quiz(); });
   sur('[data-taille]', 'click', e => { tailleQuiz = +e.currentTarget.dataset.taille; VUES.quiz(); });
   sur('#lancer', 'click', () => {
@@ -786,6 +800,97 @@ VUES.question = () => {
     document.getElementById('suite').scrollIntoView({ behavior: 'smooth', block: 'end' });
     sur('#suite', 'click', () => { partie.i++; VUES.question(); });
   });
+};
+
+/* ---------- Analyse guidée ---------- */
+
+const SCENARIOS = window.SCENARIOS || [];
+let partieG = null;
+
+VUES.guideeListe = () => {
+  partieG = null;
+  rendre('Quiz', `
+    ${segmentQuizHtml()}
+    <p class="muted petit" style="margin:0 4px 14px">Un graphique se dévoile bougie par bougie, comme en replay. À chaque étape, tu prends une décision : biais, zone, entrée, stop, cible.</p>
+    ${SCENARIOS.map(s => {
+      const best = etat.guidee[s.id];
+      return `<button class="carte cliquable" data-scenario="${s.id}">
+        <div class="mot-tete"><span class="surtitre" style="margin:0">${esc(s.niveau)} · ${s.etapes.length} étapes</span>
+          ${best != null ? `<span class="badge ${best === s.etapes.length ? 'vert' : 'or'}">${best}/${s.etapes.length}</span>` : '<span class="badge">Nouveau</span>'}</div>
+        <h3 style="margin-top:6px">${esc(s.titre)}</h3>
+        <p class="muted petit" style="margin:0">${esc(s.resume)}</p>
+      </button>`;
+    }).join('')}`);
+  sur('[data-segq]', 'click', e => { segmentQuiz = e.currentTarget.dataset.segq; VUES.quiz(); });
+  sur('[data-scenario]', 'click', e => {
+    partieG = { s: SCENARIOS.find(x => x.id === e.currentTarget.dataset.scenario), i: 0, score: 0 };
+    aller('guidee');
+  });
+};
+
+VUES.guidee = () => {
+  if (!partieG) return VUES.guideeListe();
+  const { s, i } = partieG;
+  if (i >= s.etapes.length) return VUES.guideeFin();
+  const e = s.etapes[i];
+  const ordre = ordreChoix(e);
+  rendre(s.titre, `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span class="badge or">Étape ${i + 1}/${s.etapes.length}</span><span class="muted petit">score ${partieG.score}</span>
+    </div>
+    <div class="barre" style="margin-bottom:14px"><div style="width:${i / s.etapes.length * 100}%"></div></div>
+    ${i === 0 ? `<div class="encadre" id="contexte"><p>${esc(s.contexte)}</p></div>` : ''}
+    ${svgGraphique({ base: s.graph, coupe: e.coupe, notes: e.notes || [] })}
+    <h2 style="font-size:19px;line-height:1.4;margin:0 0 16px">${e.q}</h2>
+    ${ordre.map(k => `<button class="choix" data-k="${k}">${e.choix[k]}</button>`).join('')}
+    <div id="expl"></div>`);
+  window.scrollTo(0, 0);
+  const vus = new Set();
+  lierTermes([$vue.querySelector('#contexte'), $vue.querySelector('h2')], vus);
+
+  sur('.choix', 'click', ev => {
+    const k = +ev.currentTarget.dataset.k;
+    const bon = k === e.bonne;
+    $vue.querySelectorAll('.choix').forEach(b => {
+      b.disabled = true;
+      if (+b.dataset.k === e.bonne) b.classList.add('bon');
+    });
+    if (!bon) ev.currentTarget.classList.add('faux');
+    if (bon) partieG.score++;
+    const dernier = i + 1 >= s.etapes.length;
+    document.getElementById('expl').innerHTML = `
+      <div class="encadre ${bon ? 'astuce' : 'attention'}"><p><strong>${bon ? 'Bien vu.' : 'Pas tout à fait.'}</strong> ${e.expl}</p></div>
+      <button class="btn principal plein" id="suite">${dernier ? 'Voir la fin du graphique' : 'Bougies suivantes ▸'}</button>`;
+    lierTermes([document.querySelector('#expl .encadre')], vus);
+    document.getElementById('suite').scrollIntoView({ behavior: 'smooth', block: 'end' });
+    sur('#suite', 'click', () => { partieG.i++; VUES.guidee(); });
+  });
+};
+
+VUES.guideeFin = () => {
+  const { s, score } = partieG;
+  const n = s.etapes.length;
+  etat.guidee[s.id] = Math.max(etat.guidee[s.id] ?? 0, score);
+  noterActivite();
+  const f = s.final || {};
+  const badge = { gain: ['vert', 'Trade gagnant'], perte: ['rouge', 'Trade perdant'], neutre: ['', 'Lecture de structure'] }[f.resultat || 'neutre'];
+  rendre(s.titre, `
+    <span class="badge ${badge[0]}">${badge[1]}</span>
+    ${svgGraphique({ base: s.graph, notes: f.notes || (window.GRAPHIQUES[s.graph].notes || []) })}
+    <div class="encadre"><p>${esc(f.texte || '')}</p></div>
+    <div class="carte mise-en-avant" style="text-align:center">
+      <p class="surtitre">Tes décisions</p>
+      <h2 style="font-size:34px;margin:4px 0">${score}/${n}</h2>
+      <p class="muted petit">${score === n ? 'Lecture parfaite.' : score >= n - 1 ? 'Très bonne lecture, une seule erreur.' : 'Rejoue le scénario : chaque étape a son explication.'}</p>
+      <div class="rangee" style="margin-top:12px">
+        <button class="btn" id="liste">Scénarios</button>
+        <button class="btn principal" id="rejouer">Rejouer</button>
+      </div>
+    </div>`);
+  window.scrollTo(0, 0);
+  lierTermes([$vue.querySelector('.encadre')]);
+  sur('#liste', 'click', () => { segmentQuiz = 'guidee'; onglet('quiz'); });
+  sur('#rejouer', 'click', () => { partieG = { s, i: 0, score: 0 }; VUES.guidee(); });
 };
 
 VUES.finQuiz = () => {
