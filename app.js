@@ -805,22 +805,38 @@ VUES.question = () => {
 /* ---------- Analyse guidée ---------- */
 
 const SCENARIOS = window.SCENARIOS || [];
+const NIVEAUX = [
+  { id: 'Débutant', titre: 'Trader débutant' },
+  { id: 'Intermédiaire', titre: 'Trader intermédiaire' },
+  { id: 'Confirmé', titre: 'Trader confirmé' },
+];
 let partieG = null;
 
 VUES.guideeListe = () => {
   partieG = null;
   rendre('Quiz', `
     ${segmentQuizHtml()}
-    <p class="muted petit" style="margin:0 4px 14px">Un graphique se dévoile bougie par bougie, comme en replay. À chaque étape, tu prends une décision : biais, zone, entrée, stop, cible.</p>
-    ${SCENARIOS.map(s => {
+    <p class="muted petit" style="margin:0 4px 6px">Un graphique se dévoile bougie par bougie, comme en replay. À chaque étape, tu prends une décision : biais, zone, entrée, stop, cible.</p>
+    ${NIVEAUX.map(niv => {
+      const liste = SCENARIOS.filter(s => s.niveau === niv.id);
+      if (!liste.length) return '';
+      const reussis = liste.filter(s => etat.guidee[s.id] === s.etapes.length).length;
+      return `
+      <div class="section-titre" style="display:flex;justify-content:space-between;align-items:center">
+        <span>${niv.titre}</span><span>${reussis}/${liste.length} réussis</span>
+      </div>
+      <div class="barre" style="margin:-4px 4px 12px"><div style="width:${reussis / liste.length * 100}%"></div></div>
+      ${liste.map(s => {
       const best = etat.guidee[s.id];
       return `<button class="carte cliquable" data-scenario="${s.id}">
-        <div class="mot-tete"><span class="surtitre" style="margin:0">${esc(s.niveau)} · ${s.etapes.length} étapes</span>
+        <div class="mot-tete"><span class="surtitre" style="margin:0">${s.etapes.length} étapes</span>
           ${best != null ? `<span class="badge ${best === s.etapes.length ? 'vert' : 'or'}">${best}/${s.etapes.length}</span>` : '<span class="badge">Nouveau</span>'}</div>
         <h3 style="margin-top:6px">${esc(s.titre)}</h3>
         <p class="muted petit" style="margin:0">${esc(s.resume)}</p>
       </button>`;
-    }).join('')}`);
+      }).join('')}`;
+    }).join('')}
+    <p class="muted petit" style="margin:8px 4px">Un scénario est "réussi" quand toutes tes décisions sont justes.</p>`);
   sur('[data-segq]', 'click', e => { segmentQuiz = e.currentTarget.dataset.segq; VUES.quiz(); });
   sur('[data-scenario]', 'click', e => {
     partieG = { s: SCENARIOS.find(x => x.id === e.currentTarget.dataset.scenario), i: 0, score: 0 };
@@ -1050,5 +1066,14 @@ VUES.reglages = () => {
 onglet('accueil');
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  // Quand une nouvelle version prend le relais, on recharge une fois pour l'afficher tout de suite.
+  // Pas au tout premier lancement (aucune version précédente ne contrôlait la page).
+  const versionPrecedente = !!navigator.serviceWorker.controller;
+  let recharge = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!versionPrecedente || recharge) return;
+    recharge = true;
+    location.reload();
+  });
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
