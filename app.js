@@ -139,6 +139,85 @@ document.querySelectorAll('.tabbar button').forEach(b => b.addEventListener('cli
 function rendre(titre, html) {
   $titre.textContent = titre;
   $vue.innerHTML = html;
+  $vue.querySelectorAll('.graph[data-g]').forEach(el => { el.outerHTML = svgGraphique(el.dataset.g); });
+}
+
+/* ---------- Graphiques en chandeliers (données dans data/graphiques.js) ---------- */
+
+const COULEURS_GRAPH = { vert: 'var(--green)', rouge: 'var(--red)', or: 'var(--accent)', bleu: 'var(--blue)', neutre: 'var(--muted)' };
+
+function svgGraphique(id) {
+  const d = (window.GRAPHIQUES || {})[id];
+  if (!d) return '';
+  const b = window.genererBougies(d.base ? window.GRAPHIQUES[d.base] : d);
+  const L = 12, G0 = 6, DROITE = 40, H = 230, HAUT = 24, BAS = 24;
+  const W = G0 + b.length * L + DROITE;
+  const min = Math.min(...b.map(x => x.l)), max = Math.max(...b.map(x => x.h));
+  const y = p => +(HAUT + (max - p) / (max - min) * (H - HAUT - BAS)).toFixed(1);
+  const xc = i => G0 + i * L + L / 2, xg = i => G0 + i * L + 1, xd = i => G0 + (i + 1) * L - 1;
+  const coul = c => COULEURS_GRAPH[c] || COULEURS_GRAPH.neutre;
+  const txt = (x, yy, t, c, ancre = 'start') =>
+    `<text x="${x}" y="${yy}" text-anchor="${ancre}" style="fill:${c}" class="g-txt">${esc(t)}</text>`;
+  const rect = (x1, p1, x2, p2, c, op = 0.16) =>
+    `<rect x="${x1}" y="${Math.min(y(p1), y(p2))}" width="${x2 - x1}" height="${Math.max(1, Math.abs(y(p1) - y(p2)))}" style="fill:${c};fill-opacity:${op};stroke:${c};stroke-opacity:.55;stroke-width:.6"/>`;
+  const ligne = (x1, x2, p, c, plein) =>
+    `<line x1="${x1}" x2="${x2}" y1="${y(p)}" y2="${y(p)}" style="stroke:${c};stroke-width:1${plein ? '' : ';stroke-dasharray:3 2'}"/>`;
+  const prixCote = (i, cote) => cote === 'h' ? b[i].h : cote === 'l' ? b[i].l : (b[i].o + b[i].c) / 2;
+  const fr2 = r => String(r).replace('.', ',');
+  const fond = [], dessus = [];
+
+  for (const n of d.notes || []) {
+    const c = coul(n.couleur);
+    if (n.t === 'zone') {
+      const k = b[n.i];
+      const top = n.mode === 'corps' ? Math.max(k.o, k.c) : k.h, bot = n.mode === 'corps' ? Math.min(k.o, k.c) : k.l;
+      fond.push(rect(xg(n.i), top, xd(n.a), bot, c));
+      if (n.texte) dessus.push(txt(xd(n.a) - 2, y(top) - 3, n.texte, c, 'end'));
+    } else if (n.t === 'fvg') {
+      const avant = b[n.i - 1], apres = b[n.i + 1];
+      const haussier = apres.l > avant.h;
+      const top = haussier ? apres.l : avant.l, bot = haussier ? avant.h : apres.h;
+      fond.push(rect(xg(n.i - 1), top, xd(n.a), bot, c, 0.2));
+      if (n.ce) dessus.push(ligne(xg(n.i - 1), xd(n.a), (top + bot) / 2, c));
+      if (n.texte) dessus.push(txt(xd(n.a) - 2, y(top) - 3, n.texte, c, 'end'));
+    } else if (n.t === 'niveau' || n.t === 'ligne') {
+      const p = n.t === 'niveau' ? prixCote(n.i, n.cote) : n.prix;
+      const de = n.t === 'niveau' ? xc(n.i) : xg(n.de);
+      dessus.push(ligne(de, xd(n.a), p, c));
+      // Texte centré sur la ligne : la zone entre le swing et la cassure est en général vide.
+      if (n.texte) dessus.push(txt((de + xd(n.a)) / 2, y(p) - 4, n.texte, c, 'middle'));
+    } else if (n.t === 'fibo') {
+      const montee = b[n.vers].h > b[n.de].h;
+      const s = montee ? b[n.de].l : b[n.de].h, e = montee ? b[n.vers].h : b[n.vers].l;
+      const prix = r => e + r * (s - e);
+      for (const z of n.zones || []) {
+        fond.push(rect(xg(n.de), prix(z.de), xd(n.a), prix(z.a), coul(z.couleur), 0.13));
+        dessus.push(txt(xg(n.de) + 3, (y(prix(z.de)) + y(prix(z.a))) / 2 + 3.5, z.texte, coul(z.couleur)));
+      }
+      for (const r of n.niveaux || []) {
+        dessus.push(ligne(xg(n.de), xd(n.a), prix(r), COULEURS_GRAPH.neutre, r === 0 || r === 1));
+        dessus.push(txt(xd(n.a) + 3, y(prix(r)) + 3.5, fr2(r), COULEURS_GRAPH.neutre));
+      }
+    } else if (n.t === 'label') {
+      const yy = n.cote === 'h' ? y(b[n.i].h) - 12 : y(b[n.i].l) + 12;
+      const w = 10 + n.texte.length * 6.2;
+      dessus.push(`<rect x="${xc(n.i) - w / 2}" y="${yy - 7.5}" width="${w}" height="15" rx="7.5" style="fill:${c}"/>`);
+      dessus.push(`<text x="${xc(n.i)}" y="${yy + 3.5}" text-anchor="middle" class="g-txt" style="fill:#0b0f14;stroke:none">${esc(n.texte)}</text>`);
+    } else if (n.t === 'texte') {
+      const yy = n.cote === 'h' ? y(b[n.i].h) - 6 : y(b[n.i].l) + 14;
+      dessus.push(txt(xc(n.i), yy, n.texte, n.couleur ? c : COULEURS_GRAPH.neutre, 'middle'));
+    }
+  }
+
+  const bougies = b.map((k, i) => {
+    const c = k.c >= k.o ? 'var(--green)' : 'var(--red)';
+    const top = Math.max(k.o, k.c), bot = Math.min(k.o, k.c);
+    return `<line x1="${xc(i)}" x2="${xc(i)}" y1="${y(k.h)}" y2="${y(k.l)}" style="stroke:${c};stroke-width:1.2"/>` +
+      `<rect x="${xc(i) - 3.6}" y="${y(top)}" width="7.2" height="${Math.max(1.2, y(bot) - y(top))}" style="fill:${c}"/>`;
+  }).join('');
+
+  return `<figure class="graphique"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(d.legende || 'Graphique en chandeliers')}">` +
+    fond.join('') + bougies + dessus.join('') + `</svg>${d.legende ? `<figcaption>${d.legende}</figcaption>` : ''}</figure>`;
 }
 
 function sur(selecteur, evt, fn) {
@@ -180,7 +259,7 @@ function lierTermes(elements, dejaVus = new Set()) {
   for (const racine of elements) {
     if (!racine) continue;
     const walker = document.createTreeWalker(racine, NodeFilter.SHOW_TEXT, {
-      acceptNode: n => n.parentElement.closest('code, pre, button, a, .terme') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+      acceptNode: n => n.parentElement.closest('code, pre, button, a, .terme, svg') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
     });
     const noeuds = [];
     while (walker.nextNode()) noeuds.push(walker.currentNode);
@@ -650,13 +729,21 @@ VUES.quiz = () => {
   sur('[data-taille]', 'click', e => { tailleQuiz = +e.currentTarget.dataset.taille; VUES.quiz(); });
   sur('#lancer', 'click', () => {
     const qs = melanger(poolQuiz()).slice(0, tailleQuiz).map(q => {
-      const ordre = melanger(q.choix.map((_, k) => k));
+      const ordre = ordreChoix(q);
       return { ...q, ordre };
     });
     partie = { qs, i: 0, score: 0, repondu: false };
     aller('question');
   });
 };
+
+// Les réponses qui renvoient à des repères du graphique (A, B, C...) restent dans l'ordre alphabétique.
+function ordreChoix(q) {
+  const lettre = k => (q.choix[k].match(/^([A-D])(,|$)/) || [])[1];
+  const indices = q.choix.map((_, k) => k);
+  if (indices.filter(lettre).length < 2) return melanger(indices);
+  return [...indices.filter(lettre).sort((x, y) => lettre(x).localeCompare(lettre(y))), ...indices.filter(k => !lettre(k))];
+}
 
 function poolQuiz() {
   if (themeQuiz === '__erreurs') return QUIZ.filter(q => etat.quiz.erreurs[q.id]);
@@ -671,6 +758,7 @@ VUES.question = () => {
       <span class="badge or">${esc(q.theme)}</span><span class="muted petit">${partie.i + 1}/${partie.qs.length} · score ${partie.score}</span>
     </div>
     <div class="barre" style="margin-bottom:16px"><div style="width:${partie.i / partie.qs.length * 100}%"></div></div>
+    ${q.graph ? `<div class="graph" data-g="${esc(q.graph)}"></div>` : ''}
     <h2 style="font-size:19px;line-height:1.4;margin:0 0 16px">${q.q}</h2>
     ${q.ordre.map(k => `<button class="choix" data-k="${k}">${q.choix[k]}</button>`).join('')}
     <div id="expl"></div>`);

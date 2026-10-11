@@ -15,6 +15,7 @@ window.LECONS = [
 <h3>CHoCH / MSS : la tendance change peut-être</h3>
 <p>Le <strong>Change of Character</strong> (en SMC) ou <strong>Market Structure Shift</strong> (en ICT) est la première cassure <em>contre</em> la tendance : en haussier, le prix casse le dernier HL. Le MSS version ICT exige en plus du <strong>displacement</strong> (bougies larges et décidées) et idéalement une prise de liquidité juste avant.</p>
 <div class="encadre"><p><strong>Corps ou mèche ?</strong> Choisis une règle et tiens-la. La plupart des traders ICT valident une cassure sur <strong>clôture de corps</strong>, une simple mèche au-delà du niveau étant souvent juste une prise de liquidité.</p></div>
+<div class="graph" data-g="structure"></div>
 <h3>Interne vs externe</h3>
 <p>La <strong>structure externe</strong> = les swings majeurs de ton timeframe d'analyse (H1 pour toi). La <strong>structure interne</strong> = les petits swings à l'intérieur d'une jambe. Un CHoCH interne en 15 min dans un pullback H1 haussier est souvent ton signal d'entrée, pas un retournement de la tendance H1.</p>`,
   retenir: ['HH/HL = haussier, LH/LL = baissier', 'BOS = continuation, CHoCH/MSS = changement potentiel', 'Valide les cassures sur clôture de corps', 'Le biais vient de H1, le timing de 15 min'],
@@ -38,6 +39,7 @@ window.LECONS = [
 </ul>
 <h3>Sweep vs cassure</h3>
 <p>Un <strong>sweep</strong> (ou raid) : le prix dépasse le niveau, déclenche les stops, puis revient rapidement de l'autre côté. Une <strong>vraie cassure</strong> : le prix clôture au-delà et continue. La différence se voit à la réaction : rejet rapide avec displacement inverse = sweep.</p>
+<div class="graph" data-g="liquidite"></div>
 <div class="encadre astuce"><p>Le setup ICT classique : <strong>sweep d'une liquidité, puis MSS dans l'autre sens, puis retour sur un FVG ou un OB pour entrer</strong>. La liquidité prise est le carburant du mouvement suivant.</p></div>
 <h3>Inducement</h3>
 <p>En SMC, l'<strong>inducement</strong> est un petit swing interne juste avant ta zone d'intérêt. Il attire les entrées trop précoces. Tant qu'il n'est pas pris, ton OB risque de ne pas être touché proprement, ou d'être traversé.</p>`,
@@ -53,6 +55,7 @@ window.LECONS = [
 <p>Un motif de <strong>3 bougies</strong>. Pour un FVG haussier : le <strong>plus bas de la bougie 3</strong> est au-dessus du <strong>plus haut de la bougie 1</strong>. L'espace entre les deux n'a été traversé que par la bougie 2 : le marché n'y a échangé que dans un sens. FVG baissier : le plus haut de la bougie 3 est sous le plus bas de la bougie 1.</p>
 <pre><code>FVG haussier : low[0] &gt; high[2]
 FVG baissier : high[0] &lt; low[2]</code></pre>
+<div class="graph" data-g="fvg"></div>
 <h3>Comment le prix l'utilise</h3>
 <ul>
 <li>Le prix revient souvent "rééquilibrer" le gap avant de repartir.</li>
@@ -77,6 +80,7 @@ FVG baissier : high[0] &lt; low[2]</code></pre>
 <li><strong>OB baissier</strong> : la <strong>dernière bougie haussière</strong> avant un mouvement baissier en displacement qui casse la structure.</li>
 </ul>
 <p>Si plusieurs bougies de même couleur se suivent avant l'impulsion, beaucoup de traders prennent l'ensemble comme zone, ou seulement la dernière. Choisis une convention et backteste-la.</p>
+<div class="graph" data-g="ob"></div>
 <h3>Les niveaux clés</h3>
 <ul>
 <li><strong>Open</strong> de la bougie : premier point de contact souvent utilisé pour une entrée limite.</li>
@@ -105,6 +109,7 @@ FVG baissier : high[0] &lt; low[2]</code></pre>
 <li><strong>Discount</strong> = sous 50%. Zone où on cherche des achats.</li>
 <li><strong>Premium</strong> = au-dessus de 50%. Zone où on cherche des ventes.</li>
 </ul>
+<div class="graph" data-g="premium"></div>
 <h3>Pourquoi c'est un filtre puissant</h3>
 <p>Un OB haussier en premium a deux défauts : ton risque/rendement est mauvais (tu achètes près du haut) et le prix a de l'espace pour revenir chercher la valeur sous l'equilibrium. C'est exactement ton critère <strong>equilibrium</strong> dans la grille 5 étoiles.</p>
 <div class="encadre"><p><strong>Piège :</strong> le range change dès qu'un nouveau swing se forme. Redessine-le après chaque BOS de ton timeframe d'analyse, et ne mélange pas le range H1 avec un range 15 min.</p></div>`,
@@ -124,6 +129,7 @@ FVG baissier : high[0] &lt; low[2]</code></pre>
 <tr><td>0,79</td><td>Fin de l'OTE</td></tr>
 <tr><td>1</td><td>Origine du mouvement, invalidation</td></tr></table>
 <p>Pour un achat : Fibonacci du swing low (1) au swing high (0), on cherche l'entrée entre 0,62 et 0,79 de retracement.</p>
+<div class="graph" data-g="ote"></div>
 <h3>L'intérêt : la confluence</h3>
 <p>L'OTE seul n'a rien de magique. Il devient intéressant quand un <strong>OB ou un FVG</strong> se trouve dans la zone 62 à 79%. Tu as alors un niveau précis, en discount profond, avec un stop proche (sous le swing low) : le RR est naturellement élevé.</p>
 <h3>Cibles</h3>
@@ -138,6 +144,7 @@ FVG baissier : high[0] &lt; low[2]</code></pre>
 <h3>Breaker block</h3>
 <p>Scénario haussier : le prix fait un plus haut, revient <strong>prendre un plus bas précédent</strong> (sweep de SSL), puis repart violemment à la hausse et casse le plus haut. La dernière bougie haussière avant la chute qui a fait le sweep devient un <strong>breaker haussier</strong>. Au retour du prix dessus, on cherche des achats.</p>
 <p>Sa force : il intègre une prise de liquidité <em>et</em> un changement de structure.</p>
+<div class="graph" data-g="breaker"></div>
 <h3>Mitigation block</h3>
 <p>Même logique que le breaker, mais <strong>sans prise de liquidité</strong> : le prix fait un plus bas plus haut (pas de sweep), puis casse la structure. Moins puissant que le breaker.</p>
 <h3>Qu'est-ce que "mitiger" ?</h3>
@@ -199,6 +206,7 @@ FVG baissier : high[0] &lt; low[2]</code></pre>
 <li><strong>Distribution</strong> : le vrai mouvement, dans la direction du biais.</li>
 </ol>
 <p>Une journée haussière typique : ouverture, petite baisse sous l'ouverture (qui forme la mèche basse de la bougie daily), puis hausse vers le haut du jour. La mèche basse, c'est la manipulation.</p>
+<div class="graph" data-g="amd"></div>
 <h3>Le Judas swing</h3>
 <p>C'est la phase de manipulation, souvent en début de Londres ou de New York : un mouvement rapide contre le biais, qui piège les traders de cassure, puis se retourne. Si ton biais est haussier, une baisse matinale sous le bas asiatique n'est pas un signal de vente : c'est potentiellement ton opportunité d'achat.</p>
 <div class="encadre"><p><strong>Repère pratique :</strong> l'ouverture de minuit heure de New York (07:00 heure locale en général). En biais haussier, on cherche à acheter <em>sous</em> ce prix. En biais baissier, à vendre au-dessus.</p></div>`,
@@ -257,6 +265,7 @@ FVG baissier : high[0] &lt; low[2]</code></pre>
 <tr><td>3</td><td><strong>Equilibrium</strong></td><td>OB haussier sous 50% du dealing range H1 (baissier : au-dessus).</td></tr>
 <tr><td>4</td><td><strong>Mitigation</strong></td><td>L'OB n'a jamais été retouché depuis sa création (fresh).</td></tr>
 <tr><td>5</td><td><strong>Liquidité</strong></td><td>Avant de créer l'OB, le prix a pris un plus bas (haussier) ou un plus haut (baissier) significatif.</td></tr></table>
+<div class="graph" data-g="ob5"></div>
 <h3>Comment l'utiliser</h3>
 <ul>
 <li>Note chaque setup sur 5 <strong>avant</strong> d'entrer, et écris la note dans la colonne Setup du journal (ex : "OB 4★").</li>
