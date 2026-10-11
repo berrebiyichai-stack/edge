@@ -180,3 +180,19 @@ input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   background: var(--surface-2); border: 1px solid var(--border); padding: 10px 16px; border-radius: 12px;
   font-size: 14px; z-index: 20; box-shadow: 0 8px 30px rgba(0,0,0,.4); max-width: calc(100% - 32px);
 }
+
+/* Mots du lexique cliquables et fenêtre de définition */
+.terme { text-decoration: underline dotted var(--accent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; cursor: pointer; }
+.terme:active { background: var(--accent-soft); border-radius: 4px; }
+.feuille-fond {
+  position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, .55);
+  display: flex; align-items: flex-end; justify-content: center; animation: fondu .15s ease-out;
+}
+.feuille {
+  width: 100%; max-width: 680px; background: var(--surface); border: 1px solid var(--border); border-bottom: 0;
+  border-radius: 18px 18px 0 0; padding: 20px 16px calc(16px + var(--safe-b)); animation: monte .2s ease-out;
+}
+.feuille p { color: #cdd6e0; font-size: 16px; margin: 10px 0 16px; }
+@keyframes fondu { from { opacity: 0; } }
+@keyframes monte { from { transform: translateY(40px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .feuille-fond, .feuille { animation: none; } }

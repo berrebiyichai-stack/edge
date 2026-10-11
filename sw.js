@@ -1,5 +1,5 @@
 // Cache hors ligne. Incrémenter CACHE à chaque mise à jour du contenu pour forcer le rafraîchissement.
-const CACHE = 'edge-v4';
+const CACHE = 'edge-v5';
 const FICHIERS = [
   './', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest',
   'data/lecons.js', 'data/fiches.js', 'data/lexique.js', 'data/cartes.js', 'data/quiz.js',

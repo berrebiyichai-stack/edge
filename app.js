@@ -112,6 +112,7 @@ function themes(liste) {
 let pile = [];
 
 function aller(vue, params = {}, empiler = true) {
+  fermerDefinition();
   if (empiler) pile.push({ vue, params });
   $retour.hidden = pile.length <= 1;
   window.scrollTo(0, 0);
@@ -143,6 +144,102 @@ function rendre(titre, html) {
 function sur(selecteur, evt, fn) {
   $vue.querySelectorAll(selecteur).forEach(el => el.addEventListener(evt, fn));
 }
+
+/* ---------- Mots du lexique cliquables ---------- */
+
+// Mots trop courants pour être soulignés partout (ils restent dans le lexique).
+const MOTS_IGNORES = new Set(['na', 'var', 'input', 'série', 'series', 'long', 'short', 'corps', 'mèche', 'tendance',
+  'volume', 'range', 'indicator', 'strategy', 'contrat', 'lot', 'pivot', 'bougie', 'chandelier', 'broker', 'tick', 'marge']);
+
+// "FVG (Fair Value Gap)" donne les alias FVG et Fair Value Gap ; "Swing high / Swing low" donne les deux.
+function aliasDe(terme) {
+  const m = terme.match(/^(.*?)\s*\((.*)\)\s*$/);
+  const base = (m ? m[1] : terme).split('/').map(s => s.trim());
+  const parens = m ? m[2].split('/').map(s => s.trim().replace(/^ou /, ''))
+    .filter(s => /[A-Z]/.test(s) || !s.includes(' ')) : [];
+  return [...base, ...parens].filter(a => a.length >= 2 && !MOTS_IGNORES.has(a.toLowerCase()));
+}
+
+const INDEX_TERMES = new Map();   // alias en minuscules -> { alias, i }
+LEXIQUE.forEach((m, i) => aliasDe(m.terme).forEach(a => {
+  if (!INDEX_TERMES.has(a.toLowerCase())) INDEX_TERMES.set(a.toLowerCase(), { alias: a, i });
+}));
+
+const REGEX_TERMES = INDEX_TERMES.size ? new RegExp(
+  '(?<![\\p{L}\\p{N}])(' +
+  [...INDEX_TERMES.values()].map(v => v.alias).sort((a, b) => b.length - a.length)
+    .map(a => a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') +
+  ')s?(?![\\p{L}\\p{N}])', 'giu') : null;
+
+// Les sigles (au moins 2 majuscules : CE, OB, FVG) doivent respecter la casse, sinon "ce" deviendrait un terme.
+function estSigle(a) { return (a.match(/[A-Z]/g) || []).length >= 2; }
+
+// Souligne la première apparition de chaque terme du lexique dans les éléments donnés.
+function lierTermes(elements, dejaVus = new Set()) {
+  if (!REGEX_TERMES) return;
+  for (const racine of elements) {
+    if (!racine) continue;
+    const walker = document.createTreeWalker(racine, NodeFilter.SHOW_TEXT, {
+      acceptNode: n => n.parentElement.closest('code, pre, button, a, .terme') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+    });
+    const noeuds = [];
+    while (walker.nextNode()) noeuds.push(walker.currentNode);
+    for (const noeud of noeuds) {
+      const texte = noeud.nodeValue;
+      let dernier = 0;
+      const frag = document.createDocumentFragment();
+      for (const m of texte.matchAll(REGEX_TERMES)) {
+        const entree = INDEX_TERMES.get(m[1].toLowerCase());
+        if (!entree || dejaVus.has(entree.i)) continue;
+        if (estSigle(entree.alias) && m[1] !== entree.alias) continue;
+        dejaVus.add(entree.i);
+        frag.append(texte.slice(dernier, m.index));
+        const span = document.createElement('span');
+        span.className = 'terme';
+        span.dataset.mot = entree.i;
+        span.textContent = m[0];
+        frag.append(span);
+        dernier = m.index + m[0].length;
+      }
+      if (dernier === 0) continue;
+      frag.append(texte.slice(dernier));
+      noeud.replaceWith(frag);
+    }
+  }
+}
+
+function fermerDefinition() {
+  document.querySelector('.feuille-fond')?.remove();
+}
+
+function ouvrirDefinition(i) {
+  const m = LEXIQUE[i];
+  fermerDefinition();
+  const fond = document.createElement('div');
+  fond.className = 'feuille-fond';
+  fond.innerHTML = `
+    <div class="feuille" role="dialog" aria-label="${esc(m.terme)}">
+      <div class="mot-tete"><h3 style="margin:0">${esc(m.terme)}</h3><span class="badge or">${esc(m.cat)}</span></div>
+      <p>${esc(m.def)}</p>
+      <div class="rangee">
+        <button class="btn" id="def-lexique">Ouvrir le lexique</button>
+        <button class="btn principal" id="def-ok">Compris</button>
+      </div>
+    </div>`;
+  document.body.appendChild(fond);
+  fond.addEventListener('click', e => { if (e.target === fond) fermerDefinition(); });
+  fond.querySelector('#def-ok').addEventListener('click', fermerDefinition);
+  fond.querySelector('#def-lexique').addEventListener('click', () => {
+    fermerDefinition();
+    segmentApprendre = 'lexique'; rechercheLexique = m.terme; catLexique = null;
+    aller('apprendre');
+  });
+}
+
+$vue.addEventListener('click', e => {
+  const t = e.target.closest('.terme');
+  if (t) { e.stopPropagation(); ouvrirDefinition(+t.dataset.mot); }
+});
 
 /* ---------- Leçons ---------- */
 
@@ -393,6 +490,8 @@ VUES.lecon = ({ id }) => {
       ${suivante ? `<button class="btn plein" id="suivante" style="margin-top:10px">Leçon suivante : ${esc(suivante.titre)}</button>` : ''}
     </div>`);
 
+  lierTermes($vue.querySelectorAll('.prose, .encadre'));
+
   sur('#lue', 'click', () => {
     etat.lecons[id] = jour();
     noterActivite();
@@ -409,6 +508,7 @@ VUES.fiche = ({ id }) => {
     <span class="badge or">${esc(f.theme)}</span>
     <h2 style="font-size:24px;line-height:1.2;margin:10px 0 16px">${esc(f.titre)}</h2>
     <div class="prose">${f.contenu}</div>`);
+  lierTermes($vue.querySelectorAll('.prose'));
 };
 
 let themeCartes = null;
@@ -467,6 +567,7 @@ VUES.carte = () => {
     <div id="actions">
       <button class="btn principal plein" id="voir">Voir la réponse</button>
     </div>`);
+  lierTermes([document.getElementById('flash')]);
 
   sur('#voir', 'click', () => {
     document.getElementById('rep').hidden = false;
@@ -573,6 +674,8 @@ VUES.question = () => {
     <h2 style="font-size:19px;line-height:1.4;margin:0 0 16px">${q.q}</h2>
     ${q.ordre.map(k => `<button class="choix" data-k="${k}">${q.choix[k]}</button>`).join('')}
     <div id="expl"></div>`);
+  const termesVus = new Set();
+  lierTermes([$vue.querySelector('h2')], termesVus);
 
   sur('.choix', 'click', e => {
     const k = +e.currentTarget.dataset.k;
@@ -588,6 +691,7 @@ VUES.question = () => {
     document.getElementById('expl').innerHTML = `
       <div class="encadre ${bon ? 'astuce' : 'attention'}"><p><strong>${bon ? 'Exact.' : 'Pas tout à fait.'}</strong> ${q.expl}</p></div>
       <button class="btn principal plein" id="suite">${dernier ? 'Voir le résultat' : 'Question suivante'}</button>`;
+    lierTermes([document.querySelector('#expl .encadre')], termesVus);
     document.getElementById('suite').scrollIntoView({ behavior: 'smooth', block: 'end' });
     sur('#suite', 'click', () => { partie.i++; VUES.question(); });
   });
